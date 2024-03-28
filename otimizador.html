@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Otimizador de Corte</title>
+<style>
+    #container {
+        display: flex;
+        flex-wrap: wrap;
+        width: 500px;
+        height: 500px;
+        border: 2px solid black;
+        position: relative;
+    }
+    .piece {
+        position: absolute;
+        border: 1px solid red;
+    }
+    .sheet {
+        width: 500px;
+        height: 500px;
+        border: 2px solid black;
+        margin-bottom: 10px;
+        position: relative;
+    }
+</style>
+</head>
+<body>
+    <h2>Formulário de Dimensões</h2>
+    <form id="dimensionsForm">
+        <label for="sheetWidth">Largura da Folha (mm):</label>
+        <input type="number" id="sheetWidth" name="sheetWidth" required><br><br>
+        <label for="sheetHeight">Altura da Folha (mm):</label>
+        <input type="number" id="sheetHeight" name="sheetHeight" required><br><br>
+        <div id="pieceDimensions">
+            <div class="pieceDimension">
+                <label for="pieceWidth1">Largura da Peça 1 (mm):</label>
+                <input type="number" id="pieceWidth1" name="pieceWidth1" required><br><br>
+                <label for="pieceHeight1">Altura da Peça 1 (mm):</label>
+                <input type="number" id="pieceHeight1" name="pieceHeight1" required><br><br>
+            </div>
+        </div>
+        <button type="button" onclick="addPiece()">Adicionar Peça</button><br><br>
+        <button type="button" onclick="optimizeCut()">Otimizar Corte</button>
+    </form>
+
+    <h2>Diagrama de Corte</h2>
+    <div id="sheets"></div>
+
+    <script>
+        var pieceCount = 1;
+
+        function addPiece() {
+            var sheetWidth = parseInt(document.getElementById("sheetWidth").value);
+            var sheetHeight = parseInt(document.getElementById("sheetHeight").value);
+            var pieceWidthInput = document.getElementById("pieceWidth" + pieceCount);
+            var pieceHeightInput = document.getElementById("pieceHeight" + pieceCount);
+            var pieceWidth = parseInt(pieceWidthInput.value);
+            var pieceHeight = parseInt(pieceHeightInput.value);
+
+            if (pieceWidth > sheetWidth || pieceHeight > sheetHeight) {
+                alert("As dimensões da peça não podem ser maiores do que as dimensões da folha.");
+                return;
+            }
+
+            var totalArea = 0;
+            for (var i = 1; i <= pieceCount; i++) {
+                var pieceWidth = parseInt(document.getElementById("pieceWidth" + i).value);
+                var pieceHeight = parseInt(document.getElementById("pieceHeight" + i).value);
+                totalArea += pieceWidth * pieceHeight;
+            }
+
+            if (totalArea > sheetWidth * sheetHeight) {
+                alert("A área total das peças não pode ser maior do que a área total da folha.");
+                return;
+            }
+
+            pieceCount++;
+            var pieceDimensionsDiv = document.getElementById("pieceDimensions");
+            var newPieceDiv = document.createElement("div");
+            newPieceDiv.className = "pieceDimension";
+            newPieceDiv.innerHTML = `
+                <label for="pieceWidth${pieceCount}">Largura da Peça ${pieceCount} (mm):</label>
+                <input type="number" id="pieceWidth${pieceCount}" name="pieceWidth${pieceCount}" required><br><br>
+                <label for="pieceHeight${pieceCount}">Altura da Peça ${pieceCount} (mm):</label>
+                <input type="number" id="pieceHeight${pieceCount}" name="pieceHeight${pieceCount}" required><br><br>
+            `;
+            pieceDimensionsDiv.appendChild(newPieceDiv);
+        }
+
+        function optimizeCut() {
+            var sheetWidth = parseInt(document.getElementById("sheetWidth").value);
+            var sheetHeight = parseInt(document.getElementById("sheetHeight").value);
+            var pieces = [];
+
+            for (var i = 1; i <= pieceCount; i++) {
+                var pieceWidth = parseInt(document.getElementById("pieceWidth" + i).value);
+                var pieceHeight = parseInt(document.getElementById("pieceHeight" + i).value);
+                pieces.push({ width: pieceWidth, height: pieceHeight });
+            }
+            
+            var sheetsContainer = document.getElementById("sheets");
+            sheetsContainer.innerHTML = ""; // Limpa o container antes de adicionar novas folhas
+
+            // Adiciona as peças ao diagrama de corte
+            var remainingWidth = sheetWidth;
+            var remainingHeight = sheetHeight;
+            var currentX = 0;
+            var currentY = 0;
+
+            while (pieces.length > 0) {
+                var sheet = document.createElement("div");
+                sheet.className = "sheet";
+                sheet.style.width = sheetWidth + "px";
+                sheet.style.height = sheetHeight + "px";
+
+                var container = document.createElement("div");
+                container.id = "container_" + currentX + "_" + currentY;
+                container.className = "container";
+                container.style.width = sheetWidth + "px";
+                container.style.height = sheetHeight + "px";
+                sheet.appendChild(container);
+
+                while (true) {
+                    var bestFitPieceIndex = -1;
+                    var bestFitArea = 0;
+
+                    for (var i = 0; i < pieces.length; i++) {
+                        var piece = pieces[i];
+                        if (piece.width <= remainingWidth && piece.height <= remainingHeight) {
+                            var area = piece.width * piece.height;
+                            if (area > bestFitArea) {
+                                bestFitPieceIndex = i;
+                                bestFitArea = area;
+                            }
+                        }
+                    }
+
+                    if (bestFitPieceIndex === -1) {
+                        break;
+                    }
+
+                    var bestFitPiece = pieces[bestFitPieceIndex];
+                    var pieceElement = document.createElement("div");
+                    pieceElement.className = "piece";
+                    pieceElement.style.width = bestFitPiece.width + "px";
+                    pieceElement.style.height = bestFitPiece.height + "px";
+
+                    // Verifica se a peça cabe na folha
+                    if (currentX + bestFitPiece.width > sheetWidth) {
+                        currentX = 0;
+                        currentY += bestFitPiece.height;
+                    }
+
+                    // Posiciona a peça dentro da folha
+                    pieceElement.style.left = currentX + "px";
+                    pieceElement.style.top = currentY + "px";
+                    container.appendChild(pieceElement);
+
+                    // Atualiza as dimensões restantes
+                    remainingWidth -= bestFitPiece.width;
+                    if (remainingWidth === 0) {
+                        remainingWidth = sheetWidth;
+                        remainingHeight -= bestFitPiece.height;
+                        currentX = 0;
+                        currentY += bestFitPiece.height;
+                    } else {
+                        currentX += bestFitPiece.width;
+                    }
+
+                    // Remove a peça usada da lista
+                    pieces.splice(bestFitPieceIndex, 1);
+                }
+
+                // Adiciona a folha ao container
+                sheetsContainer.appendChild(sheet);
+
+                // Reinicia as dimensões restantes para a próxima folha
+                remainingWidth = sheetWidth;
+                remainingHeight = sheetHeight;
+                currentX = 0;
+                currentY = 0;
+            }
+        }
+    </script>
+</body>
+</html>
